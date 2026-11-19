@@ -1,0 +1,94 @@
+async (page) => {
+  const browser = page.context().browser();
+  const viewport = { width: 1440, height: 900 };
+  const writerContext = await browser.newContext({ viewport });
+  const observerContext = await browser.newContext({ viewport });
+  const fallbackContext = await browser.newContext({ viewport });
+  try {
+    const writer = await writerContext.newPage();
+    const observer = await observerContext.newPage();
+    const dashboard = await observerContext.newPage();
+    const fallback = await fallbackContext.newPage();
+    const base = "http://localhost:3000";
+    const bookingUrl = `${base}/?origin=BOG&destination=MDE&departureDate=2026-11-19`;
+    const frames = [];
+    let intercepted = 0;
+
+    function check(condition, message) {
+      if (!condition) throw new Error(message);
+    }
+
+    observer.on("websocket", (socket) => {
+      if (!socket.url().includes("/inventory/")) return;
+      socket.on("framereceived", ({ payload }) => {
+        if (typeof payload !== "string") return;
+        const event = JSON.parse(payload);
+        if (event.type === "seat.updated") frames.push({ ...event, at: Date.now() });
+      });
+    });
+    await fallback.routeWebSocket("**/inventory/flights/*/events/ws", async (socket) => {
+      intercepted++;
+      await socket.close();
+    });
+
+    await Promise.all([
+      writer.goto(bookingUrl),
+      observer.goto(bookingUrl),
+      fallback.goto(bookingUrl),
+      dashboard.goto(`${base}/estadisticas`),
+    ]);
+    for (const client of [writer, observer, fallback, dashboard]) client.setDefaultTimeout(10_000);
+    await Promise.all([writer, observer, fallback].map((client) =>
+      client.getByRole("article", { name: /AA 204/ })
+        .getByRole("button", { name: "Elegir vuelo" }).click(),
+    ));
+    const eligible = writer.getByRole("button", { name: /Asiento .* disponible/ });
+    const seat = (await eligible.first().innerText()).trim();
+    const available = (client) => client.getByRole("button", { name: `Asiento ${seat}, disponible` });
+    await available(observer).waitFor();
+    await available(fallback).click();
+    await fallback.getByRole("button", { name: /Continuar con asiento/ }).click();
+    const card = dashboard.getByRole("article", { name: "Vuelo AA 204" });
+    const counts = card.locator("dd");
+    await counts.first().waitFor();
+    const before = (await counts.allTextContents()).map(Number);
+    const expectCounts = async (deltas) => {
+      await Promise.all(deltas.map((delta, index) =>
+        counts.nth(index).getByText(String(before[index] + delta), { exact: true }).waitFor(),
+      ));
+    };
+
+    await available(writer).click();
+    await writer.getByRole("button", { name: /Continuar con asiento/ }).click();
+    await writer.getByRole("textbox", { name: "Nombre completo" }).fill("Pasajero Prueba");
+    await writer.getByRole("textbox", { name: "Correo electrónico" }).fill("qa@example.test");
+    await writer.getByRole("button", { name: "Crear reserva" }).click();
+    await writer.getByRole("heading", { name: "Revisa tu reserva" }).waitFor();
+    const desktopToast = observer.getByRole("alert").filter({ hasText: "Asiento ocupado" });
+    const fallbackToast = fallback.getByRole("alert").filter({ hasText: "Asiento ocupado" });
+    await desktopToast.getByText(`El asiento ${seat} ya no está disponible.`).waitFor();
+    const held = frames.find((frame) => frame.seatNumber === seat && frame.status === "HELD");
+    check(held, "No llegó el frame HELD al observador");
+    check(await observer.getByRole("button", { name: `Asiento ${seat}, held` }).isDisabled(),
+      "El mapa permite seleccionar un asiento bloqueado");
+    await fallbackToast.getByText(/Elige otro para continuar/).waitFor();
+    await fallback.getByRole("heading", { name: "Elige tu asiento" }).waitFor();
+    await fallbackToast.getByRole("button", { name: "Cerrar notificación" }).click();
+    await fallbackToast.waitFor({ state: "hidden" });
+    check(intercepted > 0, "No se ejercitó el respaldo HTTP");
+    await expectCounts([-1, 1, 0]);
+    await desktopToast.waitFor({ state: "hidden" });
+    const dismissedAfterMs = Date.now() - held.at;
+    check(dismissedAfterMs >= 6_850 && dismissedAfterMs < 8_500, "El aviso no expiró tras unos 7 s");
+
+    await writer.getByRole("button", { name: "Confirmar reserva", exact: true }).click();
+    await writer.getByRole("heading", { name: "¡Reserva confirmada!" }).waitFor();
+    await expectCounts([-1, 0, 1]);
+    await observer.getByRole("button", { name: `Asiento ${seat}, booked` }).waitFor();
+    check(!(await desktopToast.isVisible()), "La confirmación duplicó el aviso del bloqueo");
+    check((await observer.evaluate(() => innerWidth)) === viewport.width, "Viewport inesperado");
+    return { seat, viewport, dismissedAfterMs, fallback: true, dashboard: true };
+  } finally {
+    await Promise.all([writerContext.close(), observerContext.close(), fallbackContext.close()]);
+  }
+}

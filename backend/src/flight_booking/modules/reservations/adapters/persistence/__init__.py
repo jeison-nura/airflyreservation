@@ -1,0 +1,1 @@
+"""Reservations-only persistence adapters."""

@@ -1,0 +1,1 @@
+"""Payments persistence adapters."""

@@ -1,0 +1,63 @@
+import type { Flight } from "../model/types.ts";
+
+export const demoFlights: Flight[] = [
+  {
+    id: "flight-204",
+    airline: "AeroAndes",
+    flightNumber: "AA 204",
+    origin: { code: "BOG", city: "Bogotá", time: "07:10" },
+    destination: { code: "MDE", city: "Medellín", time: "08:05" },
+    departureDate: "2026-11-19",
+    duration: "55 min",
+    price: 189_900,
+    currency: "COP",
+    availableSeats: 18,
+    status: "ON_TIME",
+  },
+  {
+    id: "flight-318",
+    airline: "AeroAndes",
+    flightNumber: "AA 318",
+    origin: { code: "BOG", city: "Bogotá", time: "10:35" },
+    destination: { code: "MDE", city: "Medellín", time: "11:30" },
+    departureDate: "2026-11-19",
+    duration: "55 min",
+    price: 214_500,
+    currency: "COP",
+    availableSeats: 6,
+    status: "ON_TIME",
+  },
+  {
+    id: "flight-522",
+    airline: "AeroAndes",
+    flightNumber: "AA 522",
+    origin: { code: "BOG", city: "Bogotá", time: "15:20" },
+    destination: { code: "MDE", city: "Medellín", time: "16:15" },
+    departureDate: "2026-11-20",
+    duration: "55 min",
+    price: 209_900,
+    currency: "COP",
+    availableSeats: 12,
+    status: "DELAYED",
+  },
+  {
+    id: "flight-410",
+    airline: "AeroAndes",
+    flightNumber: "AA 410",
+    origin: { code: "BOG", city: "Bogotá", time: "13:00" },
+    destination: { code: "CLO", city: "Cali", time: "14:02" },
+    departureDate: "2026-11-19",
+    duration: "62 min",
+    price: 176_000,
+    currency: "COP",
+    availableSeats: 0,
+    status: "ON_TIME",
+  },
+];
+
+export const airports = [
+  { code: "BOG", city: "Bogotá" },
+  { code: "MDE", city: "Medellín" },
+  { code: "CLO", city: "Cali" },
+  { code: "CTG", city: "Cartagena" },
+] as const;

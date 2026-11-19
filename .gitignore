@@ -1,0 +1,37 @@
+# JavaScript package manager output
+node_modules/
+**/node_modules/
+.next/
+**/.next/
+*.tsbuildinfo
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local agent tooling, browser artifacts, and challenge reference copies
+/.agents/
+/.opencode/
+/.playwright-mcp/
+/AGENTS.md
+/frontend/AGENTS.md
+/KATA 19_nov_Sistema de Reservas de Vuelos en Tiempo Real.pdf
+/prueba_t_cnica_sistema_de_reservas_de_vuelos.md
